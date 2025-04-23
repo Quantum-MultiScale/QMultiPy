@@ -1,1 +1,1 @@
-# MultiPy
+# QMultiPy
