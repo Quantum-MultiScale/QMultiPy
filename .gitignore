@@ -172,3 +172,13 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# Visual Studio Code
+.vscode/
+.history/
+# Built Visual Studio Code Extensions
+*.vsix
+
+# uv
+uv.lock
