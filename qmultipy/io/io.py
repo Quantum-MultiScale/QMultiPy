@@ -13,49 +13,43 @@ iounkeys = ['mp', 'comm', 'kind', 'data_type', 'grid', 'names']
 IOFormats = {
     "snpy": ioformat(
         'snpy',
-        'qmultipy.formats.snpy',
+        'qmultipy.io.snpy',
         'read_snpy',
         'write_snpy',
         ['ions', 'data', 'all'],
     ),
     "xsf": ioformat(
-        'xsf', 'qmultipy.formats.xsf', 'read_xsf', 'write_xsf', ['ions', 'data', 'all']
+        'xsf', 'qmultipy.io.xsf', 'read_xsf', 'write_xsf', ['ions', 'data', 'all']
     ),
     "qepp": ioformat(
         'qepp',
-        'qmultipy.formats.qepp',
+        'qmultipy.io.qepp',
         'read_qepp',
         'write_qepp',
         ['ions', 'data', 'all'],
     ),
     "cube": ioformat(
         'cube',
-        'dqmultipy.formats.cube',
+        'dqmultipy.io.cube',
         'read_cube',
         'write_cube',
         ['ions', 'data', 'all'],
     ),
     "chg": ioformat(
-        'chg', 'qmultipy.formats.chg', 'read_chg', 'write_chg', ['ions', 'data', 'all']
+        'chg', 'qmultipy.io.chg', 'read_chg', 'write_chg', ['ions', 'data', 'all']
     ),
     "chgcar": ioformat(
         'chgcar',
-        'qmultipy.formats.chg',
+        'qmultipy.io.chg',
         'read_chgcar',
         'write_chgcar',
         ['ions', 'data', 'all'],
     ),
-    "den": ioformat('den', 'qmultipy.formats.den', 'read_den', 'write_den', ['data']),
-    "xyz": ioformat('xyz', 'dqmultipy.formats.xyz', 'read_xyz', 'write_xyz', ['ions']),
-    "vasp": ioformat(
-        'vasp', 'qmultipy.formats.vasp', 'read_vasp', 'write_vasp', ['ions']
-    ),
-    "ase": ioformat(
-        'ase', 'qmultipy.formats.ase_io', 'read_ase', 'write_ase', ['ions']
-    ),
-    "pmg": ioformat(
-        'pmg', 'qmultipy.formats.pmg_io', 'read_pmg', 'write_pmg', ['ions']
-    ),
+    "den": ioformat('den', 'qmultipy.io.den', 'read_den', 'write_den', ['data']),
+    "xyz": ioformat('xyz', 'dqmultipy.io.xyz', 'read_xyz', 'write_xyz', ['ions']),
+    "vasp": ioformat('vasp', 'qmultipy.io.vasp', 'read_vasp', 'write_vasp', ['ions']),
+    "ase": ioformat('ase', 'qmultipy.io.ase_io', 'read_ase', 'write_ase', ['ions']),
+    "pmg": ioformat('pmg', 'qmultipy.io.pmg_io', 'read_pmg', 'write_pmg', ['ions']),
 }
 
 IOFormats['pp'] = IOFormats['qepp']
