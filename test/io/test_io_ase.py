@@ -10,7 +10,7 @@ class Test(unittest.TestCase):
         from ase.io import read as ase_read
 
         from qmultipy.constants import Units
-        from qmultipy.formats.io import read as qmultipy_read
+        from qmultipy.io import read as qmultipy_read
 
         qmultipy_ions = qmultipy_read(qmultipy_data_path / 'water.xyz', driver='ase')
         ase_atoms = ase_read(qmultipy_data_path / 'water.xyz')

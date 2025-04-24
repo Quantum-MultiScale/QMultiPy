@@ -768,12 +768,12 @@ class DirectField(BaseField):
         return value
 
     def write(self, filename, ions=None, format=None, **kwargs):
-        from qmultipy.formats import io as qmultipy_io
+        from qmultipy import io as qmultipy_io
 
         qmultipy_io.write(filename, data=self, ions=ions, format=format, **kwargs)
 
     def read(self, filename, format=None, **kwargs):
-        from qmultipy.formats import io as qmultipy_io
+        from qmultipy import io as qmultipy_io
 
         self[:] = qmultipy_io.read_density(filename, format=format, **kwargs)
 

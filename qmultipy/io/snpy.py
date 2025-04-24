@@ -22,8 +22,8 @@ Notes :
 import numpy as np
 
 from qmultipy.field import DirectField
-from qmultipy.formats import npy
 from qmultipy.grid import DirectGrid
+from qmultipy.io import npy
 from qmultipy.ions import Ions
 from qmultipy.mpi import MP, MPIFile, sprint
 
