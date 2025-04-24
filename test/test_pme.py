@@ -1,9 +1,10 @@
 import numpy as np
+from ase.build import bulk
 
 from qmultipy.ewald import Ewald
-from qmultipy.ions import Ions
 from qmultipy.grid import Grid
-from ase.build import bulk
+from qmultipy.ions import Ions
+
 
 def test_ewald_pme():
     print("*" * 50)
@@ -17,8 +18,8 @@ def test_ewald_pme():
     ewald_pme = Ewald(grid=grid, ions=ions, PME=True)
 
     print('Ewald energy', ewald_.energy - ewald_pme.energy)
-    assert np.allclose(ewald_.energy, ewald_pme.energy, atol=1.E-5)
+    assert np.allclose(ewald_.energy, ewald_pme.energy, atol=1.0e-5)
     print('Ewald forces', ewald_.forces[0] - ewald_pme.forces[0])
-    assert np.allclose(ewald_.forces, ewald_pme.forces, atol=1.E-5)
+    assert np.allclose(ewald_.forces, ewald_pme.forces, atol=1.0e-5)
     print('Ewald stress', ewald_.stress[0] - ewald_pme.stress[0])
-    assert np.allclose(ewald_.stress, ewald_pme.stress, atol=1.E-5)
+    assert np.allclose(ewald_.stress, ewald_pme.stress, atol=1.0e-5)
