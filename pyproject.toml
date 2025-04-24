@@ -51,9 +51,14 @@ docs = [
     "sphinx-rtd-theme>=3.0.2",
 ]
 test = [
+    "black==24.2.0",
+    "isort==5.13.2",
+    "mypy==1.8.0",
+    "pre-commit>=4.2.0",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
     "pytest-mpi>=0.6",
+    "velin==0.0.11",
 ]
 
 [project.urls]
