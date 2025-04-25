@@ -166,6 +166,10 @@ class Ions(IonsBase):
                         'Use only one of "positions" and "scaled_positions".'
                     )
 
+            if magmoms is not None:
+                if units == 'au':
+                    magmoms = np.array(magmoms) * (Units.A * Units.Bohr**2)
+
             init_options = locals()
             for k in ["__class__", "self", "symbols", "atoms", "units"]:
                 init_options.pop(k, None)
