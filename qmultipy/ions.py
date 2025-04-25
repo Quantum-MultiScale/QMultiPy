@@ -1,10 +1,94 @@
+from copy import deepcopy
+
 import numpy as np
 from ase import Atoms
+from ase.atom import Atom
+from ase.atoms import default
+from ase.cell import Cell
+from ase.symbols import symbols2numbers
 
 from qmultipy.constants import Units
 
 
-class Ions(Atoms):
+class IonsBase:
+
+    ase_methods = [
+        "new_array",
+        "set_cell",
+        "set_celldisp",
+        "get_celldisp",
+        "set_tags",
+        "get_tags",
+        "set_array",
+        "set_initial_magnetic_moments",
+        "get_initial_magnetic_moments",
+        "set_initial_charges",
+        "get_initial_charges",
+        "get_scaled_positions",
+        "get_chemical_formula",
+        "get_cell",
+        "get_chemical_symbols",
+        "set_pbc",
+        "set_positions",
+        "get_positions",
+        "has",
+        "copy",
+    ]
+    ase_attributes = [
+        "init_options",
+        "symbols",
+        "positions",
+        "numbers",
+        "tags",
+        "magmoms",
+        "scaled_positions",
+        "cell",
+        "celldisp",
+        "info",
+        "velocities",
+        "arrays",
+        "pbc",
+        "constraints",  # please do not use this
+    ]
+
+    def __getattribute__(self, name):
+        if name in IonsBase.ase_attributes or name in IonsBase.ase_methods:
+            attr = object.__getattribute__(self._atoms, name)
+        else:
+            attr = object.__getattribute__(self, name)
+        return attr
+
+    def __init__(self, atoms: Atoms):
+        self._atoms = atoms.copy()
+
+        positions = self.get_positions() / Units.Bohr
+        magmoms = self.get_initial_magnetic_moments() / (Units.A * Units.Bohr**2)
+        cell = self.get_cell().array / Units.Bohr
+        celldisp = self.get_celldisp() / Units.Bohr
+
+        self.set_positions(positions)
+        self.set_initial_magnetic_moments(magmoms)
+        self.set_cell(cell)
+        self.set_celldisp(celldisp)
+
+    @property
+    def atoms(self) -> Atoms:
+        at = self._atoms.copy()
+
+        positions = self.get_positions() * Units.Bohr
+        magmoms = self.get_initial_magnetic_moments() * (Units.A * Units.Bohr**2)
+        cell = self.get_cell().array * Units.Bohr
+        celldisp = self.get_celldisp() * Units.Bohr
+
+        at.set_positions(positions)
+        at.set_initial_magnetic_moments(magmoms)
+        at.set_cell(cell)
+        at.set_celldisp(celldisp)
+
+        return at
+
+
+class Ions(IonsBase):
     """Ions object based on `ase.Atoms <https://wiki.fysik.dtu.dk/ase/ase/atoms.html>`_
 
     .. note::
@@ -19,82 +103,92 @@ class Ions(Atoms):
 
     def __init__(
         self,
+        atoms=None,
         symbols=None,
         positions=None,
         numbers=None,
         tags=None,
-        momenta=None,
-        masses=None,
         magmoms=None,
         charges=None,
         scaled_positions=None,
         cell=None,
-        pbc=None,
         celldisp=None,
-        constraint=None,
-        calculator=None,
         info=None,
-        velocities=None,
+        pbc=True,
         units='au',
     ):
+        if units not in ['au', 'ase']:
+            raise ValueError("units must be either 'au' (Bohr) or 'ase' (Angstrom)")
 
-        if isinstance(symbols, Atoms):
-            units = 'ase'
+        if atoms is not None:
+            init_options = locals()
+            for k in ["__class__", "self", "atoms", "pbc", "units"]:
+                init_options.pop(k, None)
+            if any([o is not None for o in init_options.values()]):
+                raise TypeError(
+                    'When initializing Ions from atoms object, please do not pass any other arguments'
+                )
+            super().__init__(atoms)
+        else:
+            if symbols is not None and numbers is not None:
+                raise TypeError('Use only one of "symbols" and "numbers".')
+            if symbols is not None:
+                numbers = symbols2numbers(symbols)
+            elif numbers is None:
+                if positions is not None:
+                    natoms = len(positions)
+                elif scaled_positions is not None:
+                    natoms = len(scaled_positions)
+                else:
+                    natoms = 0
+                numbers = np.zeros(natoms, int)
 
-        self.init_options = locals()
-        for k in ['__class__', 'self']:
-            self.init_options.pop(k, None)
+            if cell is None:
+                cell = np.zeros((3, 3))
+            elif units == 'au':
+                cell = np.array(cell) * Units.Bohr
+            if celldisp is None:
+                celldisp = np.zeros(shape=(3, 1))
+            elif units == 'au':
+                celldisp = np.array(celldisp) * Units.Bohr
 
-        super().__init__(
-            symbols=symbols,
-            positions=positions,
-            numbers=numbers,
-            tags=tags,
-            momenta=momenta,
-            masses=masses,
-            magmoms=magmoms,
-            charges=charges,
-            scaled_positions=scaled_positions,
-            cell=cell,
-            pbc=pbc,
-            celldisp=celldisp,
-            constraint=constraint,
-            calculator=calculator,
-            info=info,
-            velocities=velocities,
-        )
+            if positions is None:
+                if scaled_positions is None:
+                    positions = np.zeros((len(numbers), 3))
+                else:
+                    assert cell.rank == 3
+                    positions = np.dot(scaled_positions, cell)
+            else:
+                if units == 'au':
+                    positions = np.array(positions) * Units.Bohr
+                if scaled_positions is not None:
+                    raise TypeError(
+                        'Use only one of "positions" and "scaled_positions".'
+                    )
 
-        if units != 'au':
-            self.convert_units()
+            if magmoms is not None:
+                if units == 'au':
+                    magmoms = np.array(magmoms) * (Units.A * Units.Bohr**2)
+
+            init_options = locals()
+            for k in ["__class__", "self", "symbols", "atoms", "units"]:
+                init_options.pop(k, None)
+
+            at = Atoms(**init_options)
+            super().__init__(at)
 
     def to_ase(self):
-        atoms = self.copy()
-        atoms.convert_units(backward=True)
-        return atoms
+        return self.atoms
 
     @staticmethod
-    def from_ase(atoms):
-        ions = Ions(atoms, units='ase')
-        return ions
-
-    def convert_units(self, backward=False):
-        """ "Convert the units to atomic units or ase units."""
-        if not backward:
-            self.cell.array[:] /= Units.Bohr
-            if self.has('positions'):
-                self.positions[:] /= Units.Bohr
-            self._celldisp /= Units.Bohr
-        else:
-            self.cell.array[:] *= Units.Bohr
-            if self.has('positions'):
-                self.positions[:] *= Units.Bohr
-            self._celldisp *= Units.Bohr
+    def from_ase(atoms: Atoms):
+        return Ions(atoms)
 
     def get_ncharges(self):
         """Get total number of charges."""
-        if not self.has('initial_charges'):
+        if not self.has("initial_charges"):
             raise AttributeError("Please call 'set_charges' before use 'charges'.")
-        return self.arrays['initial_charges'].sum()
+        return self.arrays["initial_charges"].sum()
 
     def get_charges(self):
         """Get the atomic charges."""
@@ -116,16 +210,16 @@ class Ions(Atoms):
     @property
     def charges(self):
         """Get the atomic charges."""
-        if not self.has('initial_charges'):
+        if not self.has("initial_charges"):
             raise AttributeError("Please call 'set_charges' before use 'charges'.")
-        return self.arrays['initial_charges']
+        return self.arrays["initial_charges"]
 
     @charges.setter
     def charges(self, value):
         """Set the atomic charges."""
-        if not self.has('initial_charges'):
+        if not self.has("initial_charges"):
             raise AttributeError("Please call 'set_charges' before use 'charges'.")
-        self.arrays['initial_charges'][:] = value
+        self.arrays["initial_charges"][:] = value
 
     def strf(self, reciprocal_grid, iatom):
         """Returns the Structure Factor associated to i-th ion."""
@@ -149,7 +243,7 @@ class Ions(Atoms):
     @property
     def nat(self):
         """Number of atoms"""
-        return len(self)
+        return len(self._atoms)
 
     @property
     def zval(self):
@@ -167,3 +261,8 @@ class Ions(Atoms):
                     zval[k] = self.charges[i]
                     break
         return zval
+
+    def repeat(self, *args, **kwargs):
+        ions = deepcopy(self)
+        ions._atoms = ions._atoms.repeat(*args, **kwargs)
+        return ions
