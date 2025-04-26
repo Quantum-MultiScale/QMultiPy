@@ -917,3 +917,19 @@ def Grid(
     else:
         obj = ReciprocalGrid(lattice, **options, **kwargs)
     return obj
+
+
+# This class might be used one day when we have multiple molecular grid generators (beyond pyscf)
+#class MolecularGrid(object):
+#    def __init__(self, coords=None, weights=None):
+#        self.coords = coords
+#        self.weights = weights
+#
+#    def from_pyscf(self, mol, grid_level=4):
+#        from pyscf.dft.gen_grid import Grids
+#        grids = Grids(mol)
+#        grids.level = grid_level
+#        grids.build()
+#        self.coords = grids.coords
+#        self.weights = grids.weights
+#
