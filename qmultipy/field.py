@@ -781,6 +781,69 @@ class DirectField(BaseField):
         recip = self.fft().cut_highg(g2max)
         return recip.ifft()
 
+    def to_othergrid(self, othergrid):
+        return otherfield
+    
+    def to_molecular_grid(self, othergrid, fast=True, **kwargs):
+        '''
+        Convert the field to a molecular grid
+        othergrid: np.array with x,y,z coordinates
+        fast: bool, if True, use the fast algorithm, otherwise use the accurate algorithm
+        '''
+        from .maps import direct_to_atomic_accurate, direct_to_atomic_fast
+        if fast:
+            self._molecular =  direct_to_atomic_fast(self, othergrid, **kwargs)
+            self._molecular_grid = othergrid
+        else:
+            self._molecular = direct_to_atomic_accurate(self, othergrid, **kwargs)
+            self._molecular_grid = othergrid
+        return self._molecular
+
+
+    def to_mat_GTOs(self, mol, grid_level=4):
+        '''
+        Convert the field to a matrix representation of GTOs
+        mol: pyscf.mol
+        grid_level: int, grid level for the molecular grid
+        '''
+        from .maps import direct_to_GTOs_full
+        self._mat_gto = direct_to_GTOs_full(self, mol, grid_level)
+        self._mol = mol
+        return self._mat_gto
+
+   
+    def to_GTOs(self, mol, grid_level=4):
+        '''
+        Convert the field to a GTO representation
+        mol: pyscf.mol
+        grid_level: int, grid level for the molecular grid
+        '''
+        from .maps import direct_to_GTOs
+        self._gto = direct_to_GTOs(self, mol, grid_level)
+        self._mol = mol
+        return self._gto
+
+    @property
+    def molecular_grid(self):
+        return self._molecular_grid
+
+    @property
+    def molecular(self):
+        return self._molecular
+
+
+    @property
+    def gto(self):
+        return self._gto
+    
+    @property
+    def mat_gto(self):
+        return self._mat_gto
+    
+    @property
+    def mol(self):
+        return self._mol
+
 
 class ReciprocalField(BaseField):
     def __new__(cls, grid, data=None, rank=1, order='C', cplx=False, **kwargs):
@@ -900,65 +963,6 @@ class ReciprocalField(BaseField):
         return self
 
 
-    def to_othergrid(self, othergrid):
-        return otherfield
-    
-    def to_molecular_grid(self, othergrid, fast=True, **kwargs):
-        '''
-        Convert the field to a molecular grid
-        othergrid: np.array with x,y,z coordinates
-        fast: bool, if True, use the fast algorithm, otherwise use the accurate algorithm
-        '''
-        from dftpy.maps import direct_to_atomic_accurate, direct_to_atomic_fast
-        if fast:
-            self._molecular =  direct_to_atomic_fast(self, othergrid, **kwargs)
-            self._molecular_grid = othergrid
-        else:
-            self._molecular = direct_to_atomic_accurate(self, othergrid, **kwargs)
-            self._molecular_grid = othergrid
-        return self._molecular
-
-    @property
-    def molecular(self):
-        return self._molecular
-
-    @property
-    def molecular_grid(self):
-        return self._molecular_grid
-
-    def to_mat_GTOs(self, mol, grid_level=4):
-        '''
-        Convert the field to a matrix representation of GTOs
-        mol: pyscf.mol
-        grid_level: int, grid level for the molecular grid
-        '''
-        from dftpy.maps import direct_to_GTOs_full
-        self._mat_gto = direct_to_GTOs_full(self, mol, grid_level)
-        self._mol = mol
-        return self._mat_gto
-
-    @property
-    def mat_gto(self):
-        return self._mat_gto
-    
-    def to_GTOs(self, mol, grid_level=4):
-        '''
-        Convert the field to a GTO representation
-        mol: pyscf.mol
-        grid_level: int, grid level for the molecular grid
-        '''
-        from dftpy.maps import direct_to_GTOs
-        self._gto = direct_to_GTOs(self, mol, grid_level)
-        self._mol = mol
-        return self._gto
-
-    @property
-    def gto(self):
-        return self._gto
-    
-    @property
-    def mol(self):
-        return self._mol
 
 def Field(grid, data=None, rank=1, order='C', cplx=False, direct=True, **kwargs):
     options = {

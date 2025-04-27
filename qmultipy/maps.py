@@ -39,7 +39,8 @@ def direct_to_GTOs_full(field,mol,grid_level=4):
     eri = mol.intor("int2e", aosym = "s1")
     n = mat.shape[0]
     N = n**2
-    coeffs = np.linalg.solve(eri.reshape(N,N), mat.flatten())    
+    # Use pseudoinverse since eri matrix may be singular
+    coeffs = np.linalg.pinv(eri.reshape(N,N)) @ mat.flatten()
 
     # check if field is well represented
     ovlp = mol.intor("int1e_ovlp").flatten()
@@ -100,7 +101,7 @@ def direct_atomic_to_ao(mol,field_atomic,grid_atomic_points,grid_atomic_weights)
         coeffs: numpy.array of size (nao,nao)
     '''
 
-    from pyscf.dft.numint import eval_ao, _scale_ao, _dot_ao_dm
+    from pyscf.dft.numint import eval_ao, _scale_ao, _dot_ao_ao
     from pyscf.dft.gen_grid import BLKSIZE
     
     ao=eval_ao(mol,grid_atomic_points,deriv=0)
@@ -109,13 +110,11 @@ def direct_atomic_to_ao(mol,field_atomic,grid_atomic_points,grid_atomic_weights)
     shls_slice = (0, mol.nbas)
     ao_loc = mol.ao_loc_nr()
 
-    aow=np.empty((np.shape(grid_atomic_points[:,0])[0],nao)) 
-    mat=np.empty((nao,nao))
-    
-    
-    aow = _scale_ao(ao, grid_atomic_weights*field_atomic)
-    coeffs = _dot_ao_dm(mol, ao, aow, non0tab, shls_slice, ao_loc)
+    aow = _scale_ao(ao,grid_atomic_weights*field_atomic)
 
+    coeffs = _dot_ao_ao(mol, ao, aow, non0tab, shls_slice, ao_loc)
+
+    print("coeffs",coeffs.shape)
     return coeffs
 
 
@@ -142,10 +141,7 @@ def direct_potential_atomic_to_ao(mol,field_atomic,grid_atomic_points,grid_atomi
     shls_slice = (0, mol.nbas)
     ao_loc = mol.ao_loc_nr()
 
-    aow=np.empty((np.shape(grid_atomic_points[:,0])[0],nao)) 
-    mat=np.empty((nao,nao))
-    
-    aow = _scale_ao(ao, grid_atomic_weights*field_atomic, out=aow)
+    aow = _scale_ao(ao, grid_atomic_weights*field_atomic)
     mat = _dot_ao_ao(mol, ao, aow, non0tab, shls_slice, ao_loc)
 
     # symmetrize the matrix
@@ -164,12 +160,10 @@ def direct_to_atomic_accurate(field, othergrid):
         otherfield: np.array with values of the field at the atomic grid points
     '''
 
-    if othergrid.ndim > 1 and othergrid.shape[0] > 3:
-        points = othergrid.transpose()    
-    else:
+    if othergrid.ndim > 1:
         points = othergrid
 
-     if field.spl_coeffs is None:
+    if field.spl_coeffs is None:
         field._calc_spline()
 
     otherfield = ndimage.map_coordinates(field.spl_coeffs, [points[:, 0], points[:, 1], points[:, 2]], mode="wrap")
@@ -188,9 +182,7 @@ def direct_to_atomic_fast(field, othergrid):
         otherfield: np.array with values of the field at the atomic grid points
     '''
 
-    if othergrid.ndim > 1 and othergrid.shape[0] > 3:
-        points = othergrid.transpose()    
-    else:
+    if othergrid.ndim:
         points = othergrid
 
     metric = np.dot(field.grid.lattice, field.grid.lattice.T)
@@ -200,7 +192,9 @@ def direct_to_atomic_fast(field, othergrid):
         points[:,i] /= ll[i] #Divide each coordinate by the lattice parameters
         points[:,i] *= field.grid.nr[i] #Multiply each coordinate by the Grid points for each direction.
     p2=(np.rint(points)).astype(int) #Round coordinates to the nearest integer
-    p2=np.mod(p2, field.grid.nr) #arr1 % arr2 #Remainder of Div.
+    # Apply modulo for each dimension separately
+    for i in range(3):
+        p2[:,i] = np.mod(p2[:,i], field.grid.nr[i])
     otherfield=field[p2[:,0],p2[:,1],p2[:,2]] #Getting the nearest point among the Grid and the Coord (The values of the field)
     return otherfield
 
