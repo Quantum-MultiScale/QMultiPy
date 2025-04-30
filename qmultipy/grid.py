@@ -29,7 +29,7 @@ class BaseGrid:
         self,
         lattice,
         nr=None,
-        origin=np.array([0.0, 0.0, 0.0]),
+        origin=np.array([0.0, 0.0, 0.0]), # origin not used - will use to define r and rr
         full=True,
         direct=True,
         cplx=False,
@@ -386,6 +386,9 @@ class DirectGrid(BaseGrid):
     def _calc_grid_cart_points(self):
         if self._r is None:
             self._r = np.einsum("j...,jk->k...", self.s, self.lattice)
+            self._r[0] -= self.origin[0]
+            self._r[1] -= self.origin[1]
+            self._r[2] -= self.origin[2]
 
     @property
     def r(self):

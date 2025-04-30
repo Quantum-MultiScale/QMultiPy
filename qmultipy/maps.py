@@ -26,7 +26,7 @@ def direct_to_GTOs_full(field,mol,grid_level=4):
     # get the electrostatic potetnial from direct field
     fg = field.fft()
     fg *= 4 * np.pi * fg.grid.invgg
-    v_H = fg.ifft()
+    v_H = fg.ifft(force_real=True)
     # Get the atomic grid
     grids = Grids(mol)
     grids.level = grid_level
@@ -40,6 +40,7 @@ def direct_to_GTOs_full(field,mol,grid_level=4):
     n = mat.shape[0]
     N = n**2
     # Use pseudoinverse since eri matrix may be singular
+    #coeffs = np.linalg.pinv(eri.transpose(0,2,1,3).reshape(N,N)) @ mat.flatten()
     coeffs = np.linalg.pinv(eri.reshape(N,N)) @ mat.flatten()
 
     # check if field is well represented
@@ -48,6 +49,8 @@ def direct_to_GTOs_full(field,mol,grid_level=4):
     int_mat = np.einsum("m,m->", coeffs, ovlp)
 
     if int_mat - int_field > 1e-6:
+        print("int_mat",int_mat)
+        print("int_field",int_field)
         warnings.warn("Field is not well represented by GTOs")
     return coeffs.reshape(n,n)
 
@@ -161,13 +164,113 @@ def direct_to_atomic_accurate(field, othergrid):
     '''
 
     if othergrid.ndim > 1:
-        points = othergrid
+        points = othergrid.copy()
+    else:
+        points = np.array([othergrid]).copy()
 
     if field.spl_coeffs is None:
         field._calc_spline()
 
-    otherfield = ndimage.map_coordinates(field.spl_coeffs, [points[:, 0], points[:, 1], points[:, 2]], mode="wrap")
+    # Transform othergrid coordinates to the field's grid index space
+    metric = np.dot(field.grid.lattice, field.grid.lattice.T)
+    ll = np.sqrt(np.diag(metric))
+
+    for i in range(3):
+        points[:, i] /= ll[i]  # Divide each coordinate by the lattice parameters
+        points[:, i] *= field.grid.nr[i] #+ field.spl_order # (we are using padded arrays) Multiply each coordinate by the Grid points for each direction
+
+    mask = np.all((points >= 0) & (points < field.grid.nr + field.spl_order), axis=1)
+    otherfield = np.zeros(points.shape[0])
+    otherfield[mask] = ndimage.map_coordinates(field.spl_coeffs, [points[mask, 0], points[mask, 1], points[mask, 2]], mode="constant")
     return otherfield
+
+
+def direct_to_atomic_accurate_alternative(field, othergrid):
+    ''' From cartesian to atomic grid using Kernel Ridge Regression
+        This function uses local KRR for interpolation, which can be more accurate
+        than splines for irregular grids.
+        
+    Args:
+        field: QMultiPy direct field object
+        othergrid: np.array with x,y,z coordinates
+    Returns:
+        otherfield: np.array with values of the field at the atomic grid points
+    '''
+    import numpy as np
+    from sklearn.kernel_ridge import KernelRidge
+    from sklearn.neighbors import KDTree
+    
+    # Convert othergrid to points array
+    if othergrid.ndim > 1:
+        query_points = othergrid.copy()
+    else:
+        query_points = np.array([othergrid]).copy()
+        
+    # Transform query points to the field's grid index space
+    metric = np.dot(field.grid.lattice, field.grid.lattice.T)
+    ll = np.sqrt(np.diag(metric))
+    
+    for i in range(3):
+        query_points[:, i] /= ll[i]  # Scale by lattice parameters
+        query_points[:, i] *= field.grid.nr[i]  # Scale to grid points
+        
+    # Use DirectGrid to get source points
+    grid = field.grid
+    
+    # Reshape grid.s to get source points
+    # grid.s has shape (3, nx, ny, nz), we need to reshape to (nx*ny*nz, 3)
+    source_points = np.stack(grid.s, axis=-1)  # Stack along new last axis
+    source_points = source_points.reshape(-1, 3)  # Reshape to 2D array
+    
+    # Convert to index space by multiplying each coordinate by corresponding nr
+    for i in range(3):
+        source_points[:, i] *= grid.nr[i]
+        
+    source_values = field.ravel()
+    
+    # Initialize KDTree for efficient neighbor search
+    tree = KDTree(source_points)
+    
+    # Parameters for local KRR
+    n_neighbors = field.spl_order**3
+    gamma = 1.0  # RBF kernel parameter
+    alpha = 1e-10  # Regularization strength
+    
+    # Find nearest neighbors for each query point
+    distances, indices = tree.query(query_points, k=n_neighbors)
+    
+    # Initialize output array
+    otherfield = np.zeros(query_points.shape[0])
+    
+    # Perform local KRR for each query point
+    for i, query in enumerate(query_points):
+        # Get local neighborhood
+        local_points = source_points[indices[i]]
+        local_values = source_values[indices[i]]
+        
+        # Skip if all local values are zero
+        if np.all(local_values == 0):
+            continue
+            
+        # Fit local KRR model
+        krr = KernelRidge(
+            kernel='rbf',
+            #gamma=gamma,
+            alpha=alpha
+        )
+        krr.fit(local_points, local_values)
+        
+        # Predict at query point
+        pred = krr.predict(query.reshape(1, -1))
+        otherfield[i] = pred[0]
+        
+    # Apply mask for out-of-bounds points
+    mask = np.all((query_points >= 0) & (query_points < grid.nr), axis=1)
+    otherfield[~mask] = 0
+    
+    return otherfield
+
+
 
 
 def direct_to_atomic_fast(field, othergrid):
@@ -182,8 +285,11 @@ def direct_to_atomic_fast(field, othergrid):
         otherfield: np.array with values of the field at the atomic grid points
     '''
 
-    if othergrid.ndim:
-        points = othergrid
+    if othergrid.ndim > 1:
+        points = othergrid.copy()
+    else:
+        points = np.array([othergrid]).copy()
+
 
     metric = np.dot(field.grid.lattice, field.grid.lattice.T)
     ll = np.sqrt(np.diag(metric))
@@ -191,11 +297,14 @@ def direct_to_atomic_fast(field, othergrid):
     for i in range(3):
         points[:,i] /= ll[i] #Divide each coordinate by the lattice parameters
         points[:,i] *= field.grid.nr[i] #Multiply each coordinate by the Grid points for each direction.
-    p2=(np.rint(points)).astype(int) #Round coordinates to the nearest integer
+    points=(np.rint(points)).astype(int) #Round coordinates to the nearest integer
     # Apply modulo for each dimension separately
+    p2 = np.zeros(points.shape,dtype=int)
     for i in range(3):
-        p2[:,i] = np.mod(p2[:,i], field.grid.nr[i])
-    otherfield=field[p2[:,0],p2[:,1],p2[:,2]] #Getting the nearest point among the Grid and the Coord (The values of the field)
+        p2[:,i] = np.mod(points[:,i], field.grid.nr[i])
+    mask = np.all((points >= 0) & (points < field.grid.nr), axis=1)
+    otherfield = np.zeros(points.shape[0])
+    otherfield[mask] = field[p2[mask,0],p2[mask,1],p2[mask,2]] #Getting the nearest point among the Grid and the Coord (The values of the field)
     return otherfield
 
 

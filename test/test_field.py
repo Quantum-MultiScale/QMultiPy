@@ -8,7 +8,7 @@ from qmultipy.grid import DirectGrid
 def simple_grid():
     # Create a simple cubic grid
     lattice = np.eye(3) * 10.0  # 10 Bohr cube
-    nr = np.array([20, 20, 20])  # 20x20x20 grid points
+    nr = np.array([40, 40, 40])  # 20x20x20 grid points
     return DirectGrid(lattice=lattice, nr=nr)
 
 @pytest.fixture
@@ -16,13 +16,13 @@ def simple_mol():
     # Create a simple H2 molecule
     mol = gto.M(
         atom='''
-        H 0 0 0
-        H 0 0 1
+        Ne 5 5 5
         ''',
         basis='6-31g',
         unit='Bohr'
     )
     mol.build()
+    #print("mol.atom_coords",mol.atom_coords())
     return mol
 
 @pytest.fixture
@@ -32,17 +32,26 @@ def mol_grid(simple_mol):
     grids = Grids(simple_mol)
     grids.level = 4
     grids.build()
+    #np.savetxt("grids.txt", grids.coords)
     return grids.coords, grids.weights
     
 @pytest.fixture
-def gaussian_field(simple_grid):
+def gaussian_field_cartesian(simple_grid):
     # Create a Gaussian-shaped field centered in the box
     center = np.array([5.0, 5.0, 5.0])
     sigma = 1.0
-    r2 = np.einsum('ijkl, i->jkl',simple_grid.r,center)**2
+    r2 = (simple_grid.r[0]-center[0])**2 + (simple_grid.r[1]-center[1])**2 + (simple_grid.r[2]-center[2])**2
     data = np.exp(-r2/(2*sigma**2))
     return DirectField(grid=simple_grid, data=data)
 
+@pytest.fixture
+def gaussian_field_molecular(mol_grid):
+    # Create a Gaussian-shaped field centered in the box
+    center = np.array([5.0, 5.0, 5.0])
+    sigma = 1.0
+    r2 = (mol_grid[0][:,0]-center[0])**2 + (mol_grid[0][:,1]-center[1])**2 + (mol_grid[0][:,2]-center[2])**2
+    data = np.exp(-r2/(2*sigma**2))
+    return data
 #def test_field_to_othergrid(gaussian_field, simple_grid):
 #    field = gaussian_field
 #    othergrid = simple_grid
@@ -50,27 +59,33 @@ def gaussian_field(simple_grid):
 #    assert otherfield is not None # just to check if it runs next is to get the coeffs from a calc and hardcode assert
 #
 
-def test_field_to_molgrid(gaussian_field, mol_grid):
-    field = gaussian_field
+def test_field_to_molgrid(gaussian_field_cartesian, gaussian_field_molecular, mol_grid):
+    field = gaussian_field_cartesian
+    #field.spl_order = 3
+    field.spl_coeffs = None
     othergrid = mol_grid[0]
-    field = field.to_molecular_grid(othergrid, fast=False)
-    assert field is not None # just to check if it runs next is to get the coeffs from a calc and hardcode assert
+    otherfield = field.to_molecular_grid(othergrid, fast=False, ndimage=False)
+    #np.savetxt("gaussian_field_cartesian.txt", field.flatten())
+    #np.savetxt("otherfield.txt", otherfield)
+    #np.savetxt("gaussian_field_molecular.txt", gaussian_field_molecular)
+    assert np.allclose(otherfield, gaussian_field_molecular,atol=1e-1)
 
-def test_field_to_othergrid_fast(gaussian_field, mol_grid):
-    field = gaussian_field
+def test_field_to_othergrid_fast(gaussian_field_cartesian, gaussian_field_molecular, mol_grid):
+    field = gaussian_field_cartesian
     othergrid = mol_grid[0]
     otherfield = field.to_molecular_grid(othergrid, fast=True)
-    assert otherfield is not None # just to check if it runs next is to get the coeffs from a calc and hardcode assert
+    #print("max delta", np.max(np.abs(otherfield - gaussian_field_molecular)))
+    assert np.allclose(otherfield, gaussian_field_molecular,atol=1.3e-1)
 
-def test_field_to_GTOs(gaussian_field, simple_mol):
-    field = gaussian_field
+def test_field_to_GTOs(gaussian_field_cartesian, simple_mol):
+    field = gaussian_field_cartesian
     mol = simple_mol
     grid_level = 4
     gto = field.to_GTOs(mol, grid_level)
     assert gto is not None # just to check if it runs next is to get the coeffs from a calc and hardcode assert
 
-def test_field_to_mat_GTOs(gaussian_field, simple_mol):
-    field = gaussian_field
+def test_field_to_mat_GTOs(gaussian_field_cartesian, simple_mol):
+    field = gaussian_field_cartesian
     mol = simple_mol
     mat = field.to_mat_GTOs(mol)
     assert mat is not None # just to check if it runs next is to get the matrix from a calc and hardcode assert

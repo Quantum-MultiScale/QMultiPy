@@ -182,8 +182,9 @@ class DirectField(BaseField):
             return mp.einsum("ijkl->i", self) * self.grid.dV
 
     def _calc_spline(self):
-        padded_values = np.pad(self, ((self.spl_order,)), mode="wrap")
-        self.spl_coeffs = ndimage.spline_filter(padded_values, order=self.spl_order)
+        #padded_values = np.pad(self, ((self.spl_order,)), mode="wrap")
+        #self.spl_coeffs = ndimage.spline_filter(padded_values, order=self.spl_order)
+        self.spl_coeffs = ndimage.spline_filter(self, order=self.spl_order)
         return
 
     def window_functions(self, window="hann"):
@@ -784,18 +785,19 @@ class DirectField(BaseField):
     def to_othergrid(self, othergrid):
         return otherfield
     
-    def to_molecular_grid(self, othergrid, fast=True, **kwargs):
+    def to_molecular_grid(self, othergrid, fast=True, ndimage=True, **kwargs):
         '''
         Convert the field to a molecular grid
         othergrid: np.array with x,y,z coordinates
         fast: bool, if True, use the fast algorithm, otherwise use the accurate algorithm
         '''
-        from .maps import direct_to_atomic_accurate, direct_to_atomic_fast
+        from .maps import direct_to_atomic_accurate, direct_to_atomic_fast, direct_to_atomic_accurate_alternative
         if fast:
             self._molecular =  direct_to_atomic_fast(self, othergrid, **kwargs)
             self._molecular_grid = othergrid
         else:
-            self._molecular = direct_to_atomic_accurate(self, othergrid, **kwargs)
+            if ndimage: self._molecular = direct_to_atomic_accurate(self, othergrid, **kwargs)
+            else: self._molecular = direct_to_atomic_accurate_alternative(self, othergrid, **kwargs)
             self._molecular_grid = othergrid
         return self._molecular
 
