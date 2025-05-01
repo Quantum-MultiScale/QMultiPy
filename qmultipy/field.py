@@ -141,7 +141,12 @@ class DirectField(BaseField):
         # obj.init_options.update(kwargs)
         #
         obj._N = None
-        obj.spl_coeffs = None
+        obj._molecular_grid = None
+        obj._molecular = None
+        obj._gto = None
+        obj._mat_gto = None
+        obj._mol = None
+        obj._spl_coeffs = None
         obj._cplx = cplx
         if obj.mp.is_mpi:
             from qmultipy.mpi.mp_mpi4py import mpi_fft
@@ -785,20 +790,18 @@ class DirectField(BaseField):
     def to_othergrid(self, othergrid):
         return otherfield
     
-    def to_molecular_grid(self, othergrid, fast=True, ndimage=True, **kwargs):
+    def to_molecular_grid(self, othergrid, fast=True, **kwargs):
         '''
         Convert the field to a molecular grid
         othergrid: np.array with x,y,z coordinates
         fast: bool, if True, use the fast algorithm, otherwise use the accurate algorithm
         '''
-        from .maps import direct_to_atomic_accurate, direct_to_atomic_fast, direct_to_atomic_accurate_alternative
+        self._molecular_grid = othergrid
+        from .maps import direct_to_atomic_accurate, direct_to_atomic_fast
         if fast:
             self._molecular =  direct_to_atomic_fast(self, othergrid, **kwargs)
-            self._molecular_grid = othergrid
         else:
-            if ndimage: self._molecular = direct_to_atomic_accurate(self, othergrid, **kwargs)
-            else: self._molecular = direct_to_atomic_accurate_alternative(self, othergrid, **kwargs)
-            self._molecular_grid = othergrid
+            self._molecular = direct_to_atomic_accurate(self, othergrid, **kwargs)
         return self._molecular
 
 
@@ -827,23 +830,32 @@ class DirectField(BaseField):
 
     @property
     def molecular_grid(self):
+        if self._molecular_grid is None:
+            raise AttributeError("molecular_grid is not set")
         return self._molecular_grid
 
     @property
     def molecular(self):
+        if self._molecular is None:
+            raise AttributeError("molecular is not set")
         return self._molecular
-
 
     @property
     def gto(self):
+        if self._gto is None:
+            raise AttributeError("gto is not set")
         return self._gto
     
     @property
     def mat_gto(self):
+        if self._mat_gto is None:
+            raise AttributeError("mat_gto is not set")
         return self._mat_gto
     
     @property
     def mol(self):
+        if self._mol is None:
+            raise AttributeError("mol is not set")
         return self._mol
 
 

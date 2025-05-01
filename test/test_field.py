@@ -7,8 +7,8 @@ from qmultipy.grid import DirectGrid
 @pytest.fixture
 def simple_grid():
     # Create a simple cubic grid
-    lattice = np.eye(3) * 10.0  # 10 Bohr cube
-    nr = np.array([40, 40, 40])  # 20x20x20 grid points
+    lattice = np.eye(3) * 6.0  # 10 Bohr cube
+    nr = np.array([20, 20, 20])  # 20x20x20 grid points
     return DirectGrid(lattice=lattice, nr=nr)
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def simple_mol():
     # Create a simple H2 molecule
     mol = gto.M(
         atom='''
-        Ne 5 5 5
+        He 3 3 3
         ''',
         basis='6-31g',
         unit='Bohr'
@@ -38,8 +38,8 @@ def mol_grid(simple_mol):
 @pytest.fixture
 def gaussian_field_cartesian(simple_grid):
     # Create a Gaussian-shaped field centered in the box
-    center = np.array([5.0, 5.0, 5.0])
-    sigma = 1.0
+    center = np.array([3.0, 3.0, 3.0])
+    sigma = 0.7
     r2 = (simple_grid.r[0]-center[0])**2 + (simple_grid.r[1]-center[1])**2 + (simple_grid.r[2]-center[2])**2
     data = np.exp(-r2/(2*sigma**2))
     return DirectField(grid=simple_grid, data=data)
@@ -47,8 +47,8 @@ def gaussian_field_cartesian(simple_grid):
 @pytest.fixture
 def gaussian_field_molecular(mol_grid):
     # Create a Gaussian-shaped field centered in the box
-    center = np.array([5.0, 5.0, 5.0])
-    sigma = 1.0
+    center = np.array([3.0, 3.0, 3.0])
+    sigma = 0.7
     r2 = (mol_grid[0][:,0]-center[0])**2 + (mol_grid[0][:,1]-center[1])**2 + (mol_grid[0][:,2]-center[2])**2
     data = np.exp(-r2/(2*sigma**2))
     return data
@@ -59,23 +59,28 @@ def gaussian_field_molecular(mol_grid):
 #    assert otherfield is not None # just to check if it runs next is to get the coeffs from a calc and hardcode assert
 #
 
+def rmse(predictions, targets):
+    rmse = np.sqrt(((predictions - targets) ** 2).mean())
+    #print("rmse", rmse)
+    return rmse
+
 def test_field_to_molgrid(gaussian_field_cartesian, gaussian_field_molecular, mol_grid):
     field = gaussian_field_cartesian
     #field.spl_order = 3
     field.spl_coeffs = None
     othergrid = mol_grid[0]
-    otherfield = field.to_molecular_grid(othergrid, fast=False, ndimage=False)
+    otherfield = field.to_molecular_grid(othergrid, fast=False)
     #np.savetxt("gaussian_field_cartesian.txt", field.flatten())
     #np.savetxt("otherfield.txt", otherfield)
     #np.savetxt("gaussian_field_molecular.txt", gaussian_field_molecular)
-    assert np.allclose(otherfield, gaussian_field_molecular,atol=1e-1)
+    assert rmse(otherfield, gaussian_field_molecular) < 5e-2
 
 def test_field_to_othergrid_fast(gaussian_field_cartesian, gaussian_field_molecular, mol_grid):
     field = gaussian_field_cartesian
     othergrid = mol_grid[0]
     otherfield = field.to_molecular_grid(othergrid, fast=True)
     #print("max delta", np.max(np.abs(otherfield - gaussian_field_molecular)))
-    assert np.allclose(otherfield, gaussian_field_molecular,atol=1.3e-1)
+    assert rmse(otherfield, gaussian_field_molecular) < 5e-2
 
 def test_field_to_GTOs(gaussian_field_cartesian, simple_mol):
     field = gaussian_field_cartesian
