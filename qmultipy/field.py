@@ -187,8 +187,8 @@ class DirectField(BaseField):
             return mp.einsum("ijkl->i", self) * self.grid.dV
 
     def _calc_spline(self):
-        #padded_values = np.pad(self, ((self.spl_order,)), mode="wrap")
-        #self.spl_coeffs = ndimage.spline_filter(padded_values, order=self.spl_order)
+        # padded_values = np.pad(self, ((self.spl_order,)), mode="wrap")
+        # self.spl_coeffs = ndimage.spline_filter(padded_values, order=self.spl_order)
         self.spl_coeffs = ndimage.spline_filter(self, order=self.spl_order)
         return
 
@@ -789,7 +789,7 @@ class DirectField(BaseField):
 
     def to_othergrid(self, othergrid):
         return otherfield
-    
+
     def to_molecular_grid(self, othergrid, fast=True, **kwargs):
         '''
         Convert the field to a molecular grid
@@ -798,12 +798,12 @@ class DirectField(BaseField):
         '''
         self._molecular_grid = othergrid
         from .maps import direct_to_atomic_accurate, direct_to_atomic_fast
+
         if fast:
-            self._molecular =  direct_to_atomic_fast(self, othergrid, **kwargs)
+            self._molecular = direct_to_atomic_fast(self, othergrid, **kwargs)
         else:
             self._molecular = direct_to_atomic_accurate(self, othergrid, **kwargs)
         return self._molecular
-
 
     def to_mat_GTOs(self, mol, grid_level=4):
         '''
@@ -812,11 +812,11 @@ class DirectField(BaseField):
         grid_level: int, grid level for the molecular grid
         '''
         from .maps import direct_to_GTOs_full
+
         self._mat_gto = direct_to_GTOs_full(self, mol, grid_level)
         self._mol = mol
         return self._mat_gto
 
-   
     def to_GTOs(self, mol, grid_level=4):
         '''
         Convert the field to a GTO representation
@@ -824,6 +824,7 @@ class DirectField(BaseField):
         grid_level: int, grid level for the molecular grid
         '''
         from .maps import direct_to_GTOs
+
         self._gto = direct_to_GTOs(self, mol, grid_level)
         self._mol = mol
         return self._gto
@@ -845,13 +846,13 @@ class DirectField(BaseField):
         if self._gto is None:
             raise AttributeError("gto is not set")
         return self._gto
-    
+
     @property
     def mat_gto(self):
         if self._mat_gto is None:
             raise AttributeError("mat_gto is not set")
         return self._mat_gto
-    
+
     @property
     def mol(self):
         if self._mol is None:
@@ -975,7 +976,6 @@ class ReciprocalField(BaseField):
             for i in range(self.rank):
                 self[i][~self.grid.get_gmask(g2max)] = 0.0
         return self
-
 
 
 def Field(grid, data=None, rank=1, order='C', cplx=False, direct=True, **kwargs):

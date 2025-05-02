@@ -29,7 +29,9 @@ class BaseGrid:
         self,
         lattice,
         nr=None,
-        origin=np.array([0.0, 0.0, 0.0]), # origin not used - will use to define r and rr
+        origin=np.array(
+            [0.0, 0.0, 0.0]
+        ),  # origin not used - will use to define r and rr
         full=True,
         direct=True,
         cplx=False,
@@ -923,7 +925,7 @@ def Grid(
 
 
 # This class might be used one day when we have multiple molecular grid generators (beyond pyscf)
-#class MolecularGrid(object):
+# class MolecularGrid(object):
 #    def __init__(self, coords=None, weights=None):
 #        self.coords = coords
 #        self.weights = weights
