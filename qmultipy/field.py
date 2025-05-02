@@ -483,52 +483,52 @@ class DirectField(BaseField):
             nnr *= n
         return np.reshape(vals, nnr, order=order)
 
-    def get_3dinterpolation(self, nr_new):
-        """
-        Only support for serial.
-        Interpolates the values of the function on a cell with a different number
-        of points, and returns a new Grid_Function_Base object.
-        """
-        if self.rank > 1:
-            raise Exception("get_3dinterpolation is only implemented for scalar fields")
+    # def get_3dinterpolation(self, nr_new):
+    #     """
+    #     Only support for serial.
+    #     Interpolates the values of the function on a cell with a different number
+    #     of points, and returns a new Grid_Function_Base object.
+    #     """
+    #     if self.rank > 1:
+    #         raise Exception("get_3dinterpolation is only implemented for scalar fields")
 
-        if self.spl_coeffs is None:
-            self._calc_spline()
-        x = (
-            np.linspace(0, 1, nr_new[0], endpoint=False) * self.grid.nr[0]
-            + self.spl_order
-        )
-        y = (
-            np.linspace(0, 1, nr_new[1], endpoint=False) * self.grid.nr[1]
-            + self.spl_order
-        )
-        z = (
-            np.linspace(0, 1, nr_new[2], endpoint=False) * self.grid.nr[2]
-            + self.spl_order
-        )
-        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
-        new_values = ndimage.map_coordinates(self.spl_coeffs, [X, Y, Z], mode="wrap")
-        new_lattice = self.grid.lattice
-        new_grid = DirectGrid(new_lattice, nr_new)
-        return DirectField(new_grid, data=new_values)
+    #     if self.spl_coeffs is None:
+    #         self._calc_spline()
+    #     x = (
+    #         np.linspace(0, 1, nr_new[0], endpoint=False) * self.grid.nr[0]
+    #         + self.spl_order
+    #     )
+    #     y = (
+    #         np.linspace(0, 1, nr_new[1], endpoint=False) * self.grid.nr[1]
+    #         + self.spl_order
+    #     )
+    #     z = (
+    #         np.linspace(0, 1, nr_new[2], endpoint=False) * self.grid.nr[2]
+    #         + self.spl_order
+    #     )
+    #     X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    #     new_values = ndimage.map_coordinates(self.spl_coeffs, [X, Y, Z], mode="wrap")
+    #     new_lattice = self.grid.lattice
+    #     new_grid = DirectGrid(new_lattice, nr_new)
+    #     return DirectField(new_grid, data=new_values)
 
-    def get_3dinterpolation_map(self, nr_new):
-        """
-        Only support for serial.
-        Interpolates the values of the function on a cell with a different number
-        of points, and returns a new Grid_Function_Base object.
-        """
-        if self.rank > 1:
-            raise Exception("get_3dinterpolation is only implemented for scalar fields")
+    # def get_3dinterpolation_map(self, nr_new):
+    #     """
+    #     Only support for serial.
+    #     Interpolates the values of the function on a cell with a different number
+    #     of points, and returns a new Grid_Function_Base object.
+    #     """
+    #     if self.rank > 1:
+    #         raise Exception("get_3dinterpolation is only implemented for scalar fields")
 
-        x = np.linspace(0, 1, nr_new[0], endpoint=False) * self.grid.nr[0]
-        y = np.linspace(0, 1, nr_new[1], endpoint=False) * self.grid.nr[1]
-        z = np.linspace(0, 1, nr_new[2], endpoint=False) * self.grid.nr[2]
-        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
-        new_values = ndimage.map_coordinates(self[0], (X, Y, Z), mode="wrap")
-        new_lattice = self.grid.lattice
-        new_grid = DirectGrid(new_lattice, nr_new)
-        return DirectField(new_grid, data=new_values)
+    #     x = np.linspace(0, 1, nr_new[0], endpoint=False) * self.grid.nr[0]
+    #     y = np.linspace(0, 1, nr_new[1], endpoint=False) * self.grid.nr[1]
+    #     z = np.linspace(0, 1, nr_new[2], endpoint=False) * self.grid.nr[2]
+    #     X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    #     new_values = ndimage.map_coordinates(self[0], (X, Y, Z), mode="wrap")
+    #     new_lattice = self.grid.lattice
+    #     new_grid = DirectGrid(new_lattice, nr_new)
+    #     return DirectField(new_grid, data=new_values)
 
     def get_cut(
         self,
