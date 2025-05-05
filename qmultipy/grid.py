@@ -57,13 +57,13 @@ class BaseGrid:
         self._nnrR = np.prod(self._nrR)
         self._dV = np.abs(self.cell.volume) / self._nnrR
         self._nrG = self._nrR.copy()
+        if self.cplx:
+            full = True
         if not full:
             self._nrG[-1] = self._nrG[-1] // 2 + 1
         self._nnrG = np.prod(self._nrG)
         self._spacings = self.cell.lengths() / self._nrR
         self._mp = mp
-        if self.cplx:
-            full = True
         self.local_slice(nr, direct=direct, full=full, cplx=cplx, **kwargs)
         self._nnr = np.prod(self._nr)
         # print('nr_local', self.mp.comm.rank, self._nr, direct, self.mp.comm.size, flush = True)
@@ -154,12 +154,7 @@ class BaseGrid:
             lattice[i] *= reps[i]
         nr = self.nr * reps
         results = self.__class__(
-            lattice,
-            nr,
-            origin=self.origin,
-            full=self.full,
-            cplx=self.cplx,
-            direct=self.direct,
+            lattice, nr, origin=self.origin, full=self.full, cplx=self.cplx
         )
         return results
 
