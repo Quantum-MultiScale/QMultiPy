@@ -59,17 +59,7 @@ class IonsBase:
         return attr
 
     def __init__(self, atoms: Atoms):
-        self._atoms = atoms.copy()
-
-        positions = self.get_positions() / Units.Bohr
-        magmoms = self.get_initial_magnetic_moments() / (Units.A * Units.Bohr**2)
-        cell = self.get_cell().array / Units.Bohr
-        celldisp = self.get_celldisp() / Units.Bohr
-
-        self.set_positions(positions)
-        self.set_initial_magnetic_moments(magmoms)
-        self.set_cell(cell)
-        self.set_celldisp(celldisp)
+        self.atoms = atoms
 
     @property
     def atoms(self) -> Atoms:
@@ -86,6 +76,20 @@ class IonsBase:
         at.set_celldisp(celldisp)
 
         return at
+
+    @atoms.setter
+    def atoms(self, value: Atoms):
+        self._atoms = value.copy()
+
+        positions = self.get_positions() / Units.Bohr
+        magmoms = self.get_initial_magnetic_moments() / (Units.A * Units.Bohr**2)
+        cell = self.get_cell().array / Units.Bohr
+        celldisp = self.get_celldisp() / Units.Bohr
+
+        self.set_positions(positions)
+        self.set_initial_magnetic_moments(magmoms)
+        self.set_cell(cell)
+        self.set_celldisp(celldisp)
 
 
 class Ions(IonsBase):
