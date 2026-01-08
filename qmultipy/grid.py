@@ -29,7 +29,9 @@ class BaseGrid:
         self,
         lattice,
         nr=None,
-        origin=np.array([0.0, 0.0, 0.0]),
+        origin=np.array(
+            [0.0, 0.0, 0.0]
+        ),  # origin not used - will use to define r and rr
         full=True,
         direct=True,
         cplx=False,
@@ -381,6 +383,9 @@ class DirectGrid(BaseGrid):
     def _calc_grid_cart_points(self):
         if self._r is None:
             self._r = np.einsum("j...,jk->k...", self.s, self.lattice)
+            self._r[0] -= self.origin[0]
+            self._r[1] -= self.origin[1]
+            self._r[2] -= self.origin[2]
 
     @property
     def r(self):
@@ -912,3 +917,19 @@ def Grid(
     else:
         obj = ReciprocalGrid(lattice, **options, **kwargs)
     return obj
+
+
+# This class might be used one day when we have multiple molecular grid generators (beyond pyscf)
+# class MolecularGrid(object):
+#    def __init__(self, coords=None, weights=None):
+#        self.coords = coords
+#        self.weights = weights
+#
+#    def from_pyscf(self, mol, grid_level=4):
+#        from pyscf.dft.gen_grid import Grids
+#        grids = Grids(mol)
+#        grids.level = grid_level
+#        grids.build()
+#        self.coords = grids.coords
+#        self.weights = grids.weights
+#

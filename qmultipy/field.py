@@ -141,7 +141,12 @@ class DirectField(BaseField):
         # obj.init_options.update(kwargs)
         #
         obj._N = None
-        obj.spl_coeffs = None
+        obj._molecular_grid = None
+        obj._molecular = None
+        obj._gto = None
+        obj._mat_gto = None
+        obj._mol = None
+        obj._spl_coeffs = None
         obj._cplx = cplx
         if obj.mp.is_mpi:
             from qmultipy.mpi.mp_mpi4py import mpi_fft
@@ -182,8 +187,9 @@ class DirectField(BaseField):
             return mp.einsum("ijkl->i", self) * self.grid.dV
 
     def _calc_spline(self):
-        padded_values = np.pad(self, ((self.spl_order,)), mode="wrap")
-        self.spl_coeffs = ndimage.spline_filter(padded_values, order=self.spl_order)
+        # padded_values = np.pad(self, ((self.spl_order,)), mode="wrap")
+        # self.spl_coeffs = ndimage.spline_filter(padded_values, order=self.spl_order)
+        self.spl_coeffs = ndimage.spline_filter(self, order=self.spl_order)
         return
 
     def window_functions(self, window="hann"):
@@ -451,52 +457,52 @@ class DirectField(BaseField):
             nnr *= n
         return np.reshape(vals, nnr, order=order)
 
-    def get_3dinterpolation(self, nr_new):
-        """
-        Only support for serial.
-        Interpolates the values of the function on a cell with a different number
-        of points, and returns a new Grid_Function_Base object.
-        """
-        if self.rank > 1:
-            raise Exception("get_3dinterpolation is only implemented for scalar fields")
+    # def get_3dinterpolation(self, nr_new):
+    #     """
+    #     Only support for serial.
+    #     Interpolates the values of the function on a cell with a different number
+    #     of points, and returns a new Grid_Function_Base object.
+    #     """
+    #     if self.rank > 1:
+    #         raise Exception("get_3dinterpolation is only implemented for scalar fields")
 
-        if self.spl_coeffs is None:
-            self._calc_spline()
-        x = (
-            np.linspace(0, 1, nr_new[0], endpoint=False) * self.grid.nr[0]
-            + self.spl_order
-        )
-        y = (
-            np.linspace(0, 1, nr_new[1], endpoint=False) * self.grid.nr[1]
-            + self.spl_order
-        )
-        z = (
-            np.linspace(0, 1, nr_new[2], endpoint=False) * self.grid.nr[2]
-            + self.spl_order
-        )
-        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
-        new_values = ndimage.map_coordinates(self.spl_coeffs, [X, Y, Z], mode="wrap")
-        new_lattice = self.grid.lattice
-        new_grid = DirectGrid(new_lattice, nr_new)
-        return DirectField(new_grid, data=new_values)
+    #     if self.spl_coeffs is None:
+    #         self._calc_spline()
+    #     x = (
+    #         np.linspace(0, 1, nr_new[0], endpoint=False) * self.grid.nr[0]
+    #         + self.spl_order
+    #     )
+    #     y = (
+    #         np.linspace(0, 1, nr_new[1], endpoint=False) * self.grid.nr[1]
+    #         + self.spl_order
+    #     )
+    #     z = (
+    #         np.linspace(0, 1, nr_new[2], endpoint=False) * self.grid.nr[2]
+    #         + self.spl_order
+    #     )
+    #     X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    #     new_values = ndimage.map_coordinates(self.spl_coeffs, [X, Y, Z], mode="wrap")
+    #     new_lattice = self.grid.lattice
+    #     new_grid = DirectGrid(new_lattice, nr_new)
+    #     return DirectField(new_grid, data=new_values)
 
-    def get_3dinterpolation_map(self, nr_new):
-        """
-        Only support for serial.
-        Interpolates the values of the function on a cell with a different number
-        of points, and returns a new Grid_Function_Base object.
-        """
-        if self.rank > 1:
-            raise Exception("get_3dinterpolation is only implemented for scalar fields")
+    # def get_3dinterpolation_map(self, nr_new):
+    #     """
+    #     Only support for serial.
+    #     Interpolates the values of the function on a cell with a different number
+    #     of points, and returns a new Grid_Function_Base object.
+    #     """
+    #     if self.rank > 1:
+    #         raise Exception("get_3dinterpolation is only implemented for scalar fields")
 
-        x = np.linspace(0, 1, nr_new[0], endpoint=False) * self.grid.nr[0]
-        y = np.linspace(0, 1, nr_new[1], endpoint=False) * self.grid.nr[1]
-        z = np.linspace(0, 1, nr_new[2], endpoint=False) * self.grid.nr[2]
-        X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
-        new_values = ndimage.map_coordinates(self[0], (X, Y, Z), mode="wrap")
-        new_lattice = self.grid.lattice
-        new_grid = DirectGrid(new_lattice, nr_new)
-        return DirectField(new_grid, data=new_values)
+    #     x = np.linspace(0, 1, nr_new[0], endpoint=False) * self.grid.nr[0]
+    #     y = np.linspace(0, 1, nr_new[1], endpoint=False) * self.grid.nr[1]
+    #     z = np.linspace(0, 1, nr_new[2], endpoint=False) * self.grid.nr[2]
+    #     X, Y, Z = np.meshgrid(x, y, z, indexing="ij")
+    #     new_values = ndimage.map_coordinates(self[0], (X, Y, Z), mode="wrap")
+    #     new_lattice = self.grid.lattice
+    #     new_grid = DirectGrid(new_lattice, nr_new)
+    #     return DirectField(new_grid, data=new_values)
 
     def get_cut(
         self,
@@ -754,6 +760,78 @@ class DirectField(BaseField):
     def cut_highg(self, g2max=None):
         recip = self.fft().cut_highg(g2max)
         return recip.ifft()
+
+    def to_othergrid(self, othergrid):
+        return otherfield
+
+    def to_molecular_grid(self, othergrid, fast=True, **kwargs):
+        '''
+        Convert the field to a molecular grid
+        othergrid: np.array with x,y,z coordinates
+        fast: bool, if True, use the fast algorithm, otherwise use the accurate algorithm
+        '''
+        self._molecular_grid = othergrid
+        from .maps import direct_to_atomic_accurate, direct_to_atomic_fast
+
+        if fast:
+            self._molecular = direct_to_atomic_fast(self, othergrid, **kwargs)
+        else:
+            self._molecular = direct_to_atomic_accurate(self, othergrid, **kwargs)
+        return self._molecular
+
+    def to_mat_GTOs(self, mol, grid_level=4):
+        '''
+        Convert the field to a matrix representation of GTOs
+        mol: pyscf.mol
+        grid_level: int, grid level for the molecular grid
+        '''
+        from .maps import direct_to_GTOs_full
+
+        self._mat_gto = direct_to_GTOs_full(self, mol, grid_level)
+        self._mol = mol
+        return self._mat_gto
+
+    def to_GTOs(self, mol, grid_level=4):
+        '''
+        Convert the field to a GTO representation
+        mol: pyscf.mol
+        grid_level: int, grid level for the molecular grid
+        '''
+        from .maps import direct_to_GTOs
+
+        self._gto = direct_to_GTOs(self, mol, grid_level)
+        self._mol = mol
+        return self._gto
+
+    @property
+    def molecular_grid(self):
+        if self._molecular_grid is None:
+            raise AttributeError("molecular_grid is not set")
+        return self._molecular_grid
+
+    @property
+    def molecular(self):
+        if self._molecular is None:
+            raise AttributeError("molecular is not set")
+        return self._molecular
+
+    @property
+    def gto(self):
+        if self._gto is None:
+            raise AttributeError("gto is not set")
+        return self._gto
+
+    @property
+    def mat_gto(self):
+        if self._mat_gto is None:
+            raise AttributeError("mat_gto is not set")
+        return self._mat_gto
+
+    @property
+    def mol(self):
+        if self._mol is None:
+            raise AttributeError("mol is not set")
+        return self._mol
 
 
 class ReciprocalField(BaseField):
