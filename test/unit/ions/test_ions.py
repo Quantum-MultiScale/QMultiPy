@@ -104,6 +104,9 @@ def test_ions_invalid_methods_and_attributes():
         _ = ions.unsupported_attribute
 
 
+@pytest.mark.filterwarnings(
+    "ignore:`product` is deprecated as of NumPy 1.25.0:DeprecationWarning"
+)
 def test_ions_repeat():
     symbols = ["H", "He"]
     positions = [[0, 0, 0], [1, 1, 1]]
