@@ -10,6 +10,68 @@ def grid():
     return DirectGrid(lattice=np.eye(3), nr=[8, 8, 8])
 
 
+@pytest.fixture
+def simple_grid():
+    lattice = np.eye(3) * 6.0
+    nr = np.array([20, 20, 20])
+    return DirectGrid(lattice=lattice, nr=nr)
+
+
+@pytest.fixture
+def simple_mol():
+    pytest.importorskip("pyscf")
+    from pyscf import gto
+
+    mol = gto.M(
+        atom="""
+        He 3 3 3
+        """,
+        basis="6-31g",
+        unit="Bohr",
+    )
+    mol.build()
+    return mol
+
+
+@pytest.fixture
+def mol_grid(simple_mol):
+    from pyscf.dft.gen_grid import Grids
+
+    grids = Grids(simple_mol)
+    grids.level = 4
+    grids.build()
+    return grids.coords, grids.weights
+
+
+@pytest.fixture
+def gaussian_field_cartesian(simple_grid):
+    center = np.array([3.0, 3.0, 3.0])
+    sigma = 0.7
+    r2 = (
+        (simple_grid.r[0] - center[0]) ** 2
+        + (simple_grid.r[1] - center[1]) ** 2
+        + (simple_grid.r[2] - center[2]) ** 2
+    )
+    data = np.exp(-r2 / (2 * sigma**2))
+    return DirectField(grid=simple_grid, data=data)
+
+
+@pytest.fixture
+def gaussian_field_molecular(mol_grid):
+    center = np.array([3.0, 3.0, 3.0])
+    sigma = 0.7
+    r2 = (
+        (mol_grid[0][:, 0] - center[0]) ** 2
+        + (mol_grid[0][:, 1] - center[1]) ** 2
+        + (mol_grid[0][:, 2] - center[2]) ** 2
+    )
+    return np.exp(-r2 / (2 * sigma**2))
+
+
+def _rmse(predictions, targets):
+    return np.sqrt(((predictions - targets) ** 2).mean())
+
+
 def _scalar_field(grid):
     s = grid.s
     data = (
@@ -65,11 +127,18 @@ def test_divergence_of_vector_field(grid):
     assert np.allclose(div, expected, atol=1.0e-8)
 
 
-def test_interpolation_preserves_constant(grid):
+def test_get_value_at_points_preserves_constant(grid):
     data = np.full(tuple(grid.nr), 3.7)
     field = DirectField(grid, data=data)
-    interp = field.get_3dinterpolation([6, 6, 6])
-    assert np.allclose(interp, 3.7, atol=1.0e-12)
+    points = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.25, 0.5, 0.75],
+            [0.999, 0.1, 0.2],
+        ]
+    )
+    values = field.get_value_at_points(points.copy())
+    assert np.allclose(values, 3.7, atol=1.0e-12)
 
 
 def test_get_cut_constant_field_1d(grid):
@@ -80,7 +149,9 @@ def test_get_cut_constant_field_1d(grid):
     assert np.allclose(cut, 2.5, atol=1.0e-12)
     assert np.array_equal(cut.grid.nr, np.array([12, 1, 1]))
 
-    cut_centered = field.get_cut(r0=[1.0, 0.0, 0.0], center=[0.5, 0.0, 0.0], nr=8)
+    cut_centered = field.get_cut(
+        r0=[1.0, 0.0, 0.0], center=[0.5, 0.0, 0.0], origin=None, nr=8
+    )
     assert np.allclose(cut_centered, 2.5, atol=1.0e-12)
 
 
@@ -100,3 +171,30 @@ def test_field_factory_direct_and_reciprocal(grid):
 
     reciprocal_field = Field(grid, data=np.zeros(tuple(grid.nr)), direct=False)
     assert isinstance(reciprocal_field, ReciprocalField)
+
+
+def test_field_to_molgrid(gaussian_field_cartesian, gaussian_field_molecular, mol_grid):
+    field = gaussian_field_cartesian
+    field.spl_coeffs = None
+    otherfield = field.to_molecular_grid(mol_grid[0], fast=False)
+    assert _rmse(otherfield, gaussian_field_molecular) < 5e-2
+
+
+def test_field_to_othergrid_fast(
+    gaussian_field_cartesian, gaussian_field_molecular, mol_grid
+):
+    field = gaussian_field_cartesian
+    otherfield = field.to_molecular_grid(mol_grid[0], fast=True)
+    assert _rmse(otherfield, gaussian_field_molecular) < 5e-2
+
+
+def test_field_to_GTOs(gaussian_field_cartesian, simple_mol):
+    field = gaussian_field_cartesian
+    gto = field.to_GTOs(simple_mol, grid_level=4)
+    assert gto is not None
+
+
+def test_field_to_mat_GTOs(gaussian_field_cartesian, simple_mol):
+    field = gaussian_field_cartesian
+    mat = field.to_mat_GTOs(simple_mol, grid_level=4)
+    assert mat is not None
