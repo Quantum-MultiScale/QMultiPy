@@ -3,6 +3,7 @@ import pytest
 
 from qmultipy.field import DirectField, Field, ReciprocalField
 from qmultipy.grid import DirectGrid
+from qmultipy.io.xsf import read_xsf
 
 
 @pytest.fixture
@@ -184,6 +185,21 @@ def test_to_othergrid_fft_truncation():
     s_coarse = coarse_grid.s
     expected = np.sin(2.0 * np.pi * s_coarse[0]) + np.cos(2.0 * np.pi * s_coarse[1])
     assert np.allclose(coarse_field, expected, atol=1.0e-8)
+
+
+def test_to_othergrid_preserves_integral_xsf():
+    ions, field, _ = read_xsf(
+        "test/io/DATA/al_random.xsf", kind="all", full=True, units="angstrom"
+    )
+    coarse_nr = np.maximum(field.grid.nrR // 2, 1)
+    coarse_grid = DirectGrid(lattice=field.grid.lattice, nr=coarse_nr, full=True)
+    coarse_field = field.to_othergrid(coarse_grid)
+
+    fine_int = field.integral()
+    coarse_int = coarse_field.integral()
+    assert np.isfinite(fine_int)
+    assert np.isfinite(coarse_int)
+    assert np.isclose(coarse_int, fine_int, rtol=5e-2, atol=1.0e-6)
 
 
 def test_field_to_molgrid(gaussian_field_cartesian, gaussian_field_molecular, mol_grid):
