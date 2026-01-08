@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from qmultipy.field import DirectField
+from qmultipy.field import DirectField, Field, ReciprocalField
 from qmultipy.grid import DirectGrid
 
 
@@ -70,3 +70,33 @@ def test_interpolation_preserves_constant(grid):
     field = DirectField(grid, data=data)
     interp = field.get_3dinterpolation([6, 6, 6])
     assert np.allclose(interp, 3.7, atol=1.0e-12)
+
+
+def test_get_cut_constant_field_1d(grid):
+    data = np.full(tuple(grid.nr), 2.5)
+    field = DirectField(grid, data=data)
+
+    cut = field.get_cut(r0=[1.0, 0.0, 0.0], origin=[0.0, 0.0, 0.0], nr=12)
+    assert np.allclose(cut, 2.5, atol=1.0e-12)
+    assert np.array_equal(cut.grid.nr, np.array([12, 1, 1]))
+
+    cut_centered = field.get_cut(r0=[1.0, 0.0, 0.0], center=[0.5, 0.0, 0.0], nr=8)
+    assert np.allclose(cut_centered, 2.5, atol=1.0e-12)
+
+
+def test_para_current_plane_wave(grid):
+    phase = 2.0 * np.pi * 0.5 * grid.s[0]
+    data = np.exp(1j * phase)
+    field = DirectField(grid, data=data, cplx=True)
+    current = field.para_current(sigma=0.0)
+    assert np.allclose(current[1:], 0.0, atol=1.0e-10)
+    assert current[0].real == pytest.approx(0.40823666, abs=1.0e-6)
+    assert current[0].imag == pytest.approx(2.64184126, abs=1.0e-6)
+
+
+def test_field_factory_direct_and_reciprocal(grid):
+    direct_field = Field(grid, data=np.zeros(tuple(grid.nr)), direct=True)
+    assert isinstance(direct_field, DirectField)
+
+    reciprocal_field = Field(grid, data=np.zeros(tuple(grid.nr)), direct=False)
+    assert isinstance(reciprocal_field, ReciprocalField)

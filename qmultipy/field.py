@@ -195,32 +195,8 @@ class DirectField(BaseField):
         Wxyz = self.mp.einsum("i, j, k -> ijk", Wx, Wy, Wz)
         return Wxyz
 
-    def numerically_smooth_gradient(self, ipol=None):
-        r"""
-        DEPRECATED!!!
-        """
-        sq_self = np.sqrt(np.abs(self))
-        grad = sq_self.standard_gradient(ipol)
-        if ipol is None:
-            final = np.empty(np.shape(grad), dtype=float)
-            dim = np.shape(np.shape(sq_self))[0]
-            if dim == 4:
-                a = sq_self[0]
-            if dim == 3:
-                a = sq_self[:]
-            for ipol in np.arange(grad.rank):
-                final[ipol] = 2.0 * a * grad[ipol]
-            return DirectField(grid=grad.grid, rank=grad.rank, data=final)
-        else:
-            if grad.rank != 1:
-                raise ValueError("Gradient rank incompatible with shape")
-            return DirectField(
-                grid=grad.grid,
-                rank=1,
-                data=2.0 * sq_self * np.reshape(grad, np.shape(sq_self)),
-            )
 
-    def super_smooth_gradient(self, ipol=None, force_real=True, sigma=0.0):
+    def smooth_gradient(self, ipol=None, force_real=True, sigma=0.0):
         r"""
         Gradient of field with Gaussian convolution smoothing
          - args:
@@ -337,12 +313,10 @@ class DirectField(BaseField):
     def _gradient(self, flag="standard", ipol=None, force_real=True, sigma=0.025):
         if flag == "standard":
             return self.standard_gradient(ipol, force_real)
-        elif flag == "smooth":
+        elif flag == "smooth" or "supersmooth":
             if not force_real:
                 raise Exception("Smooth gradient is not implemented for complex fields")
-            return self.numerically_smooth_gradient(ipol)
-        elif flag == "supersmooth":
-            return self.super_smooth_gradient(ipol, force_real, sigma=sigma)
+            return self.smooth_gradient(ipol)
         elif flag == "numerical":
             return self.numerical_gradient()
         else:
@@ -901,6 +875,17 @@ class ReciprocalField(BaseField):
 
 
 def Field(grid, data=None, rank=1, order='C', cplx=False, direct=True, **kwargs):
+    """Factory for DirectField or ReciprocalField.
+
+    Args:
+        grid: DirectGrid or ReciprocalGrid to define the field domain.
+        data: Optional array-like initial data.
+        rank: Field rank (1 for scalar, 3 for vector, etc.).
+        order: Memory order for reshaping (`C` or `F`).
+        cplx: Whether to treat the field as complex.
+        direct: If True, create a DirectField; otherwise ReciprocalField.
+        **kwargs: Forwarded to the field constructor.
+    """
     options = {
         'data': data,
         'rank': rank,
