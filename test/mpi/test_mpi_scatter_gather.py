@@ -1,3 +1,6 @@
+import os
+import sys
+
 import numpy as np
 import pytest
 
@@ -7,8 +10,15 @@ from qmultipy.mpi import MP
 
 
 def _require_mpi():
-    pytest.importorskip("mpi4py")
-    from mpi4py import MPI
+    # Ensure macOS OpenMPI defaults are present for all MPI tests.
+    if sys.platform == "darwin":
+        os.environ.setdefault("OMPI_MCA_btl", "self,sm")
+        os.environ.setdefault("OMPI_MCA_oob_tcp_if_include", "en0")
+    try:
+        pytest.importorskip("mpi4py")
+        from mpi4py import MPI
+    except Exception as exc:
+        pytest.skip(f"MPI not available: {exc}")
 
     comm = MPI.COMM_WORLD
     if comm.size < 2:
