@@ -173,6 +173,19 @@ def test_field_factory_direct_and_reciprocal(grid):
     assert isinstance(reciprocal_field, ReciprocalField)
 
 
+def test_to_othergrid_fft_truncation():
+    fine_grid = DirectGrid(lattice=np.eye(3), nr=[8, 8, 8], full=True)
+    coarse_grid = DirectGrid(lattice=np.eye(3), nr=[4, 4, 4], full=True)
+    s = fine_grid.s
+    data = np.sin(2.0 * np.pi * s[0]) + np.cos(2.0 * np.pi * s[1])
+    field = DirectField(fine_grid, data=data)
+
+    coarse_field = field.to_othergrid(coarse_grid)
+    s_coarse = coarse_grid.s
+    expected = np.sin(2.0 * np.pi * s_coarse[0]) + np.cos(2.0 * np.pi * s_coarse[1])
+    assert np.allclose(coarse_field, expected, atol=1.0e-8)
+
+
 def test_field_to_molgrid(gaussian_field_cartesian, gaussian_field_molecular, mol_grid):
     field = gaussian_field_cartesian
     field.spl_coeffs = None

@@ -8,8 +8,55 @@ from qmultipy.grid import DirectGrid, ReciprocalGrid
 
 
 def direct_to_otherdirect(field, othergrid):
-    # From Yongshuo
-    return otherfield
+    """
+    Downsample a direct field onto a coarser direct grid by FFT truncation.
+
+    Assumes both grids share the same lattice. The target grid must have
+    fewer (or equal) points along each axis.
+    """
+    if hasattr(othergrid, "grid"):
+        othergrid = othergrid.grid
+    if not isinstance(othergrid, DirectGrid):
+        raise TypeError("othergrid must be a DirectGrid or DirectField")
+
+    if not np.allclose(field.grid.lattice, othergrid.lattice):
+        raise ValueError("direct_to_otherdirect requires matching lattices")
+
+    if np.any(othergrid.nrR > field.grid.nrR):
+        raise ValueError("othergrid must be coarser than field.grid")
+
+    if not field.grid.full or not othergrid.full:
+        raise NotImplementedError(
+            "direct_to_otherdirect currently requires full grids"
+        )
+
+    rank = field.rank
+    axes = (-3, -2, -1)
+
+    recip = field.fft()
+    fft_data = np.fft.fftshift(np.asarray(recip), axes=axes)
+
+    slices = []
+    for dim_old, dim_new in zip(field.grid.nrR, othergrid.nrR):
+        start = (dim_old - dim_new) // 2
+        end = start + dim_new
+        slices.append(slice(start, end))
+
+    if rank > 1:
+        slices = (slice(None), *slices)
+    else:
+        slices = tuple(slices)
+
+    fft_data = fft_data[slices]
+    fft_data = np.fft.ifftshift(fft_data, axes=axes)
+
+    recip_coarse = recip.__class__(
+        grid=othergrid.get_reciprocal(),
+        data=fft_data,
+        rank=rank,
+        cplx=field.cplx,
+    )
+    return recip_coarse.ifft(check_real=not field.cplx, force_real=not field.cplx)
 
 
 def direct_to_GTOs_full(field, mol, grid_level=4):

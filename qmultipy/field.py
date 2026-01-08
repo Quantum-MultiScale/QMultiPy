@@ -762,7 +762,9 @@ class DirectField(BaseField):
         return recip.ifft()
 
     def to_othergrid(self, othergrid):
-        return otherfield
+        from .maps import direct_to_otherdirect
+
+        return direct_to_otherdirect(self, othergrid)
 
     def to_molecular_grid(self, othergrid, fast=True, **kwargs):
         '''
