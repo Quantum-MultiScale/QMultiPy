@@ -6,7 +6,6 @@ import pytest
 from common import qmultipy_data_path
 
 
-@pytest.mark.skip
 class Test(unittest.TestCase):
     def test_io_ase(self):
         from ase.io import read as ase_read

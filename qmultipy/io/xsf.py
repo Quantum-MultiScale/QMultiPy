@@ -146,7 +146,7 @@ def read_xsf(
                 blocks[spin] = data
 
             grid = DirectGrid(lattice=data_lat, nr=nrx, full=full)
-            field = DirectField(grid=grid, griddata_3d=blocks, rank=rank)
+            field = DirectField(grid=grid, data=blocks, rank=rank)
             if data_type == 'potential':
                 field /= Units.Ha
     if kind == 'data':

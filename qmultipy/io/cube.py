@@ -70,12 +70,12 @@ def write_cube(
     **kwargs,
 ):
     if long:
-        fmt = "{0:15}{1:22.15e}{2:22.15e}{3:22.15e}"
-        fmt2 = fmt + "{4:22.15e}"
+        fmt = "{0:15d} {1:22.15e} {2:22.15e} {3:22.15e}"
+        fmt2 = fmt + " {4:22.15e}"
         fmt3 = "%22.15e"
     else:
-        fmt = "{0:5}{1:12.6f}{2:12.6f}{3:12.6f}"  # original
-        fmt2 = fmt + "{4:12.6f}"
+        fmt = "{0:5d} {1:12.6f} {2:12.6f} {3:12.6f}"  # original
+        fmt2 = fmt + " {4:12.6f}"
         fmt3 = "%13.5e"
     fh = open(filename, "w")
     if header is None:

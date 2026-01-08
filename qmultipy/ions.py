@@ -33,6 +33,7 @@ class IonsBase:
         "get_positions",
         "has",
         "copy",
+        "wrap",
     ]
     ase_attributes = [
         "init_options",
